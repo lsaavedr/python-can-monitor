@@ -6,7 +6,12 @@ import sys
 import threading
 import traceback
 
-from .source_handler import CandumpHandler, InvalidFrame, SerialHandler
+from .source_handler import (
+    CandumpHandler,
+    InvalidFrame,
+    SerialHandler,
+    CanHandler
+)
 
 
 should_redraw = threading.Event()
@@ -177,6 +182,7 @@ def parse_ints(string_list):
 
 def run():
     parser = argparse.ArgumentParser(description='Process CAN data from a serial device or from a file.')
+    parser.add_argument('can_device', type=str, nargs='?')
     parser.add_argument('serial_device', type=str, nargs='?')
     parser.add_argument('baud_rate', type=int, default=115200, nargs='?',
                         help='Serial baud rate in bps (default: 115200)')
@@ -194,13 +200,23 @@ def run():
     args = parser.parse_args()
 
     # checks arguments
-    if not args.serial_device and not args.candump_file:
-        print("Please specify serial device or file name")
+    if not args.can_device and not args.serial_device and not args.candump_file:
+        print("Please specify can device or serial device or file name")
         print()
         parser.print_help()
         return
     if args.serial_device and args.candump_file:
         print("You cannot specify a serial device AND a file name")
+        print()
+        parser.print_help()
+        return
+    if args.can_device and args.candump_file:
+        print("You cannot specify a can device AND a file name")
+        print()
+        parser.print_help()
+        return
+    if args.serial_device and args.can_device:
+        print("You cannot specify a serial device AND can device")
         print()
         parser.print_help()
         return
@@ -218,6 +234,8 @@ def run():
         source_handler = SerialHandler(args.serial_device, baudrate=args.baud_rate)
     elif args.candump_file:
         source_handler = CandumpHandler(args.candump_file, args.candump_speed)
+    elif args.can_device:
+        source_handler = CanHandler(args.can_device)
 
     reading_thread = None
 

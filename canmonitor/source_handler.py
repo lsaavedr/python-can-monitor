@@ -2,6 +2,7 @@ from binascii import unhexlify
 import re
 
 import serial
+import can
 
 import time
 
@@ -134,3 +135,33 @@ class CandumpHandler(SourceHandler):
             raise InvalidFrame("Can't decode message '{}': '{}'".format(line, err))
 
         return can_id, can_data
+
+
+class CanHandler(SourceHandler):
+    """Parser for can port."""
+    def __init__(self, channel='can0'):
+        self._bus = None
+        self._channel = channel
+
+    def open(self):
+        self._bus = can.interface.Bus(
+            channel=self._channel,
+            bustype='socketcan_native'
+        )
+
+    def close(self):
+        pass
+
+    def get_message(self):
+        message = self._bus.recv()
+
+        frame = (
+            f'FRAME:ID={message.arbitration_id:d}'
+            f':LEN={message.dlc:d}'
+        )
+
+        for i in range(message.dlc):
+            frame += f':{message.data[i]:x}'
+
+        return frame
+ 
