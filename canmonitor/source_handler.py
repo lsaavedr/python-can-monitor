@@ -1,10 +1,9 @@
-from binascii import unhexlify
 import re
-
-import serial
-import can
-
 import time
+from binascii import unhexlify
+
+import can
+import serial
 
 
 class InvalidFrame(Exception):
@@ -37,14 +36,15 @@ class SourceHandler:
 
 
 class SerialHandler(SourceHandler):
-
     def __init__(self, device_name, baudrate=115200):
         self.device_name = device_name
         self.baudrate = baudrate
         self.serial_device = None
 
     def open(self):
-        self.serial_device = serial.Serial(self.device_name, self.baudrate, timeout=0)
+        self.serial_device = serial.Serial(
+            self.device_name, self.baudrate, timeout=0
+        )
 
     def close(self):
         if self.serial_device:
@@ -57,7 +57,7 @@ class SerialHandler(SourceHandler):
     def _read_until_newline(self):
         """Read data from `serial_device` until the next newline character."""
         line = self.serial_device.readline()
-        while not line.endswith(b'\n'):
+        while not line.endswith(b"\n"):
             line = line + self.serial_device.readline()
 
         return line.strip()
@@ -68,21 +68,25 @@ class SerialHandler(SourceHandler):
 
         # Split it into an array
         # (e.g. ['FRAME', 'ID=246', 'LEN=8', '8E:62:1C:F6:1E:63:63:20'])
-        frame = line.split(b':', maxsplit=3)
+        frame = line.split(b":", maxsplit=3)
 
         try:
             frame_id = int(frame[1][3:])  # get the ID from the 'ID=246' string
 
-            frame_length = int(frame[2][4:])  # get the length from the 'LEN=8' string
+            frame_length = int(
+                frame[2][4:]
+            )  # get the length from the 'LEN=8' string
 
-            hex_data = frame[3].replace(b':', b'')
+            hex_data = frame[3].replace(b":", b"")
             data = unhexlify(hex_data)
 
         except (IndexError, ValueError) as exc:
             raise InvalidFrame("Invalid frame {}".format(line)) from exc
 
         if len(data) != frame_length:
-            raise InvalidFrame("Wrong frame length or invalid data: {}".format(line))
+            raise InvalidFrame(
+                "Wrong frame length or invalid data: {}".format(line)
+            )
 
         return frame_id, data
 
@@ -102,8 +106,9 @@ class CandumpHandler(SourceHandler):
         self.clock = 0
 
     def open(self):
-        # interface name in candump file may contain non-ascii chars so we need utf-8
-        self.file_object = open(self.file_path, 'rt', encoding='utf-8')
+        # interface name in candump file may contain non-ascii chars so
+        # we need utf-8
+        self.file_object = open(self.file_path, "rt", encoding="utf-8")
 
     def close(self):
         if self.file_object:
@@ -111,12 +116,12 @@ class CandumpHandler(SourceHandler):
 
     def get_message(self):
         line = self.file_object.readline()
-        if line == '':
+        if line == "":
             raise EOFError
         return self._parse_from_candump(line)
 
     def _parse_from_candump(self, line):
-        line = line.strip('\n')
+        line = line.strip("\n")
 
         msg_match = self.MSG_RGX.match(line)
         if msg_match is None:
@@ -132,21 +137,23 @@ class CandumpHandler(SourceHandler):
         try:
             can_data = bytes.fromhex(hex_can_data)
         except ValueError as err:
-            raise InvalidFrame("Can't decode message '{}': '{}'".format(line, err))
+            raise InvalidFrame(
+                "Can't decode message '{}': '{}'".format(line, err)
+            )
 
         return can_id, can_data
 
 
 class CanHandler(SourceHandler):
     """Parser for can port."""
-    def __init__(self, channel='can0'):
+
+    def __init__(self, channel="can0"):
         self._bus = None
         self._channel = channel
 
     def open(self):
         self._bus = can.interface.Bus(
-            channel=self._channel,
-            bustype='socketcan_native'
+            channel=self._channel, bustype="socketcan_native"
         )
 
     def close(self):
@@ -155,13 +162,9 @@ class CanHandler(SourceHandler):
     def get_message(self):
         message = self._bus.recv()
 
-        frame = (
-            f'FRAME:ID={message.arbitration_id:d}'
-            f':LEN={message.dlc:d}'
-        )
+        frame = f"FRAME:ID={message.arbitration_id:d}" f":LEN={message.dlc:d}"
 
         for i in range(message.dlc):
-            frame += f':{message.data[i]:x}'
+            frame += f":{message.data[i]:x}"
 
         return frame
- 
