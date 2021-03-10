@@ -11,7 +11,7 @@ def get_version():
     with open(
         os.path.join(os.path.dirname(__file__), "canmonitor", "version.py")
     ) as f:
-        regex = re.compile("^VERSION = '(.*?)'$", re.MULTILINE)
+        regex = re.compile('^VERSION = "(.*?)"$', re.MULTILINE)
         return regex.search(f.read()).group(1)
 
 
@@ -27,7 +27,7 @@ setuptools.setup(
         ],
     },
     install_requires=[
-        "pyserial==3.2.1",
+        "pyserial>=3.2.1",
     ],
     classifiers=[
         "Development Status :: 3 - Alpha",
