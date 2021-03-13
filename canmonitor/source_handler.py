@@ -1,4 +1,5 @@
 import re
+import struct
 import time
 from binascii import unhexlify
 
@@ -87,6 +88,60 @@ class SerialHandler(SourceHandler):
             raise InvalidFrame(
                 "Wrong frame length or invalid data: {}".format(line)
             )
+
+        return frame_id, data
+
+
+class SerialBinHandler(SourceHandler):
+    def __init__(self, device_name, baudrate=115200):
+        self.device_name = device_name
+        self.baudrate = baudrate
+        self.serial_device = None
+
+        self._init_frame = False
+
+    def open(self):
+        self.serial_device = serial.Serial(
+            self.device_name, self.baudrate, timeout=0
+        )
+
+    def close(self):
+        if self.serial_device:
+            self.serial_device.close()
+
+    def get_message(self):
+        line = self._read_until_newline()
+        return self._parse(line)
+
+    def _read_until_newline(self):
+        """Read data from `serial_device`."""
+        if not self._init_frame:
+            count = 0
+            while count < 13:
+                one_byte = self.serial_device.read(1)
+                while len(one_byte) < 1:
+                    one_byte = self.serial_device.read(1)
+
+                if one_byte == b"\xff":
+                    count += 1
+                else:
+                    count = 0
+
+        line = b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
+        while line == b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff":
+            line = self.serial_device.read(13)
+            while len(line) < 13:
+                rest = 13 - len(line)
+                line += self.serial_device.read(rest)
+
+        return line
+
+    @staticmethod
+    def _parse(line):
+        # Sample frame from int32,byte,8bytes
+        frame_id = struct.unpack("<I", line[:4])[0]
+        data_len = int(line[4])
+        data = line[5 : 5 + data_len]
 
         return frame_id, data
 

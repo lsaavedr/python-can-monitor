@@ -13,6 +13,7 @@ from .source_handler import (
     CandumpHandler,
     CanHandler,
     InvalidFrame,
+    SerialBinHandler,
     SerialHandler,
 )
 
@@ -349,6 +350,12 @@ def run():
         help="Serial baud rate in bps (default: 115200)",
     )
     parser.add_argument(
+        "--bin-mode",
+        metavar="BINARY_SERIAL_MODE",
+        help="Binary Serial Mode",
+        action="store_true",
+    )
+    parser.add_argument(
         "-f",
         "--candump-file",
         metavar="CANDUMP_FILE",
@@ -421,9 +428,15 @@ def run():
         blacklist = set()
 
     if args.serial_device:
-        source_handler = SerialHandler(
-            args.serial_device, baudrate=args.baud_rate
-        )
+        if args.bin_mode:
+            source_handler = SerialBinHandler(
+                args.serial_device, baudrate=args.baud_rate
+            )
+        else:
+            source_handler = SerialHandler(
+                args.serial_device, baudrate=args.baud_rate
+            )
+
     elif args.candump_file:
         source_handler = CandumpHandler(args.candump_file, args.candump_speed)
     elif args.can_interface:
